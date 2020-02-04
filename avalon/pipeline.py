@@ -358,12 +358,44 @@ class Application(Action):
         workdir = _format_work_template(template, session)
         session["AVALON_WORKDIR"] = os.path.normpath(workdir)
 
+        asset = io.find_one({"type": "asset",
+                             "name": session["AVALON_ASSET"]})
+
         # Construct application environment from .toml config
-        app_environment = self.config.get("environment", {})
+        app_environment = self.config.get("environment", {}).copy()
+
         for key, value in app_environment.copy().items():
             if isinstance(value, list):
                 # Treat list values as paths, e.g. PYTHONPATH=[]
-                app_environment[key] = os.pathsep.join(value)
+                values = list()
+                condition = None
+                options = None
+                index = None
+
+                for val in value:
+
+                    if val.startswith("condition:"):
+                        # Set condition and reset options
+                        options = list()
+                        condition = val[len("condition:"):]
+                        index = int(asset["data"].get(condition) or
+                                    project["data"].get(condition, 0))
+
+                    elif val == "endOpt":
+                        # Select option
+                        values.append(options[index])
+                        condition = None
+                        index = None
+
+                    elif condition:
+                        # Collect option
+                        options.append(val)
+
+                    else:
+                        # Normal env path
+                        values.append(val)
+
+                app_environment[key] = os.pathsep.join(values)
 
             elif isinstance(value, six.string_types):
                 if lib.PY2:
