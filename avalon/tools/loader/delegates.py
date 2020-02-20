@@ -1,3 +1,4 @@
+import locale
 import time
 from datetime import datetime
 import logging
@@ -5,7 +6,7 @@ import logging
 from ...vendor.Qt import QtWidgets
 
 log = logging.getLogger(__name__)
-
+local_encoding = locale.getlocale()[1]
 
 def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
     """Parse datetime to readable timestamp
@@ -51,7 +52,7 @@ def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
             hours = second_diff // 3600
             return "{0}:{1:02d} hours ago".format(hours, minutes)
 
-    return t.strftime(strftime)
+    return t.strftime(strftime).decode(local_encoding)
 
 
 def pretty_timestamp(t, now=None):

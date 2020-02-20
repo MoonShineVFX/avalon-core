@@ -1,6 +1,7 @@
 import datetime
 import pprint
 import inspect
+import locale
 
 from ...vendor.Qt import QtWidgets, QtCore, QtCompat
 from ...vendor import qtawesome
@@ -18,6 +19,8 @@ from .model import (
     FamiliesFilterProxyModel,
 )
 from .delegates import PrettyTimeDelegate
+
+local_encoding = locale.getlocale()[1]
 
 
 class SubsetWidget(QtWidgets.QWidget):
@@ -353,7 +356,7 @@ class VersionTextEdit(QtWidgets.QTextEdit):
         # Define readable creation timestamp
         created = version["data"]["time"]
         created = datetime.datetime.strptime(created, "%Y%m%dT%H%M%SZ")
-        created = datetime.datetime.strftime(created, "%b %d %Y %H:%M")
+        created = datetime.datetime.strftime(created, "%b %d %Y %H:%M").decode(local_encoding)
 
         comment = version["data"].get("comment", None) or "No comment"
 
