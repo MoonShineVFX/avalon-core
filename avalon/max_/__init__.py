@@ -13,7 +13,10 @@ from .pipeline import (
     ls,
     load,
     create,
-    remove
+    update,
+    remove,
+    publish,
+    containerise
 )
 
 #     update,
@@ -26,7 +29,7 @@ from .pipeline import (
 #     lock_ignored,
 
 
-# from .lib import (
+from .lib import (
 #     export_alembic,
 #     lsattr,
 #     lsattrs,
@@ -34,12 +37,12 @@ from .pipeline import (
 #
 #     apply_shaders,
 #     without_extension,
-#     maintained_selection,
+    maintained_selection,
 #     suspended_refresh,
 #
 #     unique_name,
 #     unique_namespace,
-# )
+)
 
 __all__ = [
     "install",
@@ -51,11 +54,11 @@ __all__ = [
     "ls",
     "load",
     "create",
-    "remove"
-]
+    "remove",
+
 #     "update",
 #     "read",
-#     "publish",
+    "publish",
 # 
 #     "lock",
 #     "unlock",
@@ -71,7 +74,7 @@ __all__ = [
     #
     #     "apply_shaders",
     #     "without_extension",
-    #     "maintained_selection",
+        "maintained_selection"]
     #     "suspended_refresh",
     #
     #     "containerise",

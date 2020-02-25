@@ -5,8 +5,21 @@ Standalone helper functions
 
 @author: noflame
 '''
+import contextlib
 import MaxPlus as MP
+import pymxs
 
+@contextlib.contextmanager
+def maintained_selection():
+    rt = pymxs.runtime
+    previous_selection = rt.selection
+    try:
+        yield
+    finally:
+        if previous_selection:
+            rt.select(previous_selection)
+        else:
+            rt.select(None)
 
 def unique_namespace(namespace, format="%02d", prefix="", suffix=""):
     unique = prefix + (namespace + format % 1)
