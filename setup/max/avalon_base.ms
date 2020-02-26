@@ -42,9 +42,10 @@ extends:Point
 	rollout obj_lst_rut "object list"
 	(
 		local owner = if owner != undefined do owner
+		local CharMenu --RCMenu
 		local inPickMode = false
-		checkbutton ckb_add	"Add..."	width:50 height:24	align:#left offset:[-11, 0] across:3
-		button		btn_add	"Add"		width:50 align:#center offset:[0, 0]
+		checkbutton ckb_add	"Pick"	width:50 height:24	align:#left offset:[-11, 0] across:3
+		button		btn_add	"Add..."		width:50 align:#center offset:[0, 0]
 		button 		btn_Remove	"Remove"	width:50 align:#right  offset:[11, 0]		
 		dotNetControl  nodes_lv "ListView"	width:160 height:620	align:#center offset:[0,0]
 		
@@ -58,6 +59,12 @@ extends:Point
 			lvops.InitListView nodes_lv pCheckBoxes:true
 			lvops.AddLvColumnHeader nodes_lv pCaption: "Avalon Sets" pWidth:(obj_lst_rut.Width - 10)
 			lvops.refreshListView nodes_lv
+			
+			CharMenu = rcmenu CharacterMenu
+			(
+				menuItem mi_remove "Remove"
+				on mi_remove picked do ( obj_lst_rut.executeAction #remove )
+			)
 		)
 		
 		fn updateList = 
@@ -73,7 +80,7 @@ extends:Point
 			UpdateUI()
 		)
 		
-		function removeSelMembers =  --fixed
+		fn removeSelMembers =  --fixed
 		(
 			local selectedLVItems = lvops.GetLvSelection nodes_lv
 			undo "remove_objects" on
@@ -84,15 +91,17 @@ extends:Point
 					if (li.tag != undefined and li.tag.value != undefined) do
 					(
 						obj = li.tag.value
+						idx = findItem avalon_nodes obj
+						if idx !=0 do deleteItem avalon_nodes idx
 					)
 				)
 				updateList()
 			)
-		)
+		)		
 		
-		function pickFilter obj = 
+		fn pickFilter obj = 
 		(
-			pickable = obj.baseObject != this
+			local pickable = (obj.baseObject != this) and ((findItem avalon_nodes obj) == 0)
 		)
 		
 		function PickMultiple = --no fix needed
@@ -100,10 +109,10 @@ extends:Point
 			while ((obj = (pickObject message:"Please Select Object" count:1 filter:pickFilter forceListenerFocus:false)); isValidNode obj) do
 			(
 				undo "select object" on
-				(				
-					-- print obj.name
+				(
 					append avalon_nodes obj
 				)
+				updateList()
 			)
 		)
 		
@@ -125,7 +134,23 @@ extends:Point
 				toolmode.CommandMode = #select
 			)
 		)
-
+		
+		on btn_Add pressed do
+		(
+			title_s = ("Select " + subset + " Objects")
+			objs = selectByName title:title_s filter:pickFilter
+			if objs != undefined do
+			(
+				for obj in objs do append avalon_nodes obj
+			)
+			updateList()
+		)
+		
+		on btn_Remove pressed do
+		(
+			removeSelMembers()
+		)
+		
 		on obj_lst_rut open do --no change needed
 		(	
 			initListView()
@@ -134,16 +159,7 @@ extends:Point
 	)
 		
 	on create do
-	(
-		print this
-		-- print ("on create " + (create as string))
-		-- count += 1
+	(		
 		obj_lst_rut.owner = this
-		--this[4][1].cross = off
-		--this[4][1].centermarker = on
-		--this[4][1].axistripod = off
-		--this[4][1].box = off
-		
 	)
-
 )
