@@ -7,10 +7,9 @@ import contextlib
 
 from pyblish import api as pyblish
 
-from . import lib
+from . import lib, workio
 from ..lib import logger
-from .. import api, io, schema
-from ..tools import workfiles
+from .. import api, io, schema, Session
 from ..vendor import six
 from ..vendor.Qt import QtCore, QtWidgets
 from ..pipeline import AVALON_CONTAINER_ID
@@ -18,15 +17,17 @@ from ..pipeline import create
 # from ..pipeline import load
 # from ..pipeline import update
 # from ..pipeline import remove
+from ..tools import workfiles
 
 import MaxPlus as MP
 from MaxPlus import NotificationCodes as NC
 from MaxPlus import NotificationManager as NM
 from MaxPlus import PathManager as PM
 from MaxPlus import ActionFactory as AF
+import pymxs
+
 Ev_Mxs = MP.Core.EvalMAXScript
 Ex_Mxs = MP.Core.ExecuteMAXScript
-import pymxs
 rt = pymxs.runtime
 
 self = sys.modules[__name__]
@@ -149,12 +150,13 @@ def _install_menu():
         ava_mb = MP.MenuBuilder(ava_menu_name)
         context_mb = MP.MenuBuilder(context_menu_name)
 
-        act_projectmanager = AF.Create(category_name, 'Project Manager', lambda *args: projectmanager.show(parent=MP.GetQMaxMainWindow()))
-        act_set_Context = AF.Create(category_name, 'Set Context', lambda *args: contextmanager.show(parent=MP.GetQMaxMainWindow()))
-        act_create = AF.Create(category_name, 'Create...', lambda *args: creator.show(parent=MP.GetQMaxMainWindow()))
-        act_load = AF.Create(category_name, 'Load...', lambda *args: loader.show(parent=MP.GetQMaxMainWindow()))
+        act_projectmanager = AF.Create(category_name, 'Project Manager', lambda *args: projectmanager.show(parent=self._parent))
+        act_set_Context = AF.Create(category_name, 'Set Context', lambda *args: contextmanager.show(parent=self._parent))
+        act_create = AF.Create(category_name, 'Create...', lambda *args: creator.show(parent=self._parent))
+        act_load = AF.Create(category_name, 'Load...', lambda *args: loader.show(parent=self._parent))
         act_publish = AF.Create(category_name, 'Publish...', lambda *args: publish.show())
-        act_manage = AF.Create(category_name, 'Manage...', lambda *args: sceneinventory.show(parent=MP.GetQMaxMainWindow()))
+        act_manage = AF.Create(category_name, 'Manage...', lambda *args: sceneinventory.show(parent=self._parent))
+        act_workfiles = AF.Create(category_name, 'Work file...', lambda *args: launch_workfiles_app(self._parent))
         
         context_mb.AddItem(act_set_Context)
         ava_mb.AddItem(act_projectmanager)
@@ -162,6 +164,7 @@ def _install_menu():
         ava_mb.AddItem(act_load)
         ava_mb.AddItem(act_publish)
         ava_mb.AddItem(act_manage)
+        ava_mb.AddItem(act_workfiles)
         
         ava_menu = ava_mb.Create(MP.MenuManager.GetMainMenu())
         context_menu = context_mb.Create(ava_menu)
@@ -211,8 +214,8 @@ def _uninstall_menu():
             MP.MenuManager.UnregisterMenu(context_menu_name)
 
 
-def launch_workfiles_app(*args):
-    workfiles.show(MP.Core.EvalMAXScript('maxfilepath').Get())
+def launch_workfiles_app(*args):    
+    workfiles.show(workio.work_root(), parent=args[0])
 
 
 def find_host_config(config):
@@ -409,8 +412,7 @@ class Creator(api.Creator):
         org_lay.current = True
         return inst
 
-    def process(self):
-        import MaxPlus as MP
+    def process(self):        
         inst = self._create_ava_set_object()
 
         if (self.options or {}).get("useSelection"):
