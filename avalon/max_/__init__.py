@@ -44,6 +44,15 @@ from .lib import (
 #     unique_namespace,
 )
 
+from .workio import (
+    open_file,
+    save_file,
+    current_file,
+    has_unsaved_changes,
+    file_extensions,
+    work_root
+)
+
 __all__ = [
     "install",
     "uninstall",
