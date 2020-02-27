@@ -4,9 +4,10 @@ Created on 2020-02-27
 @author: noflame.lin
 '''
 import os
+from avalon import Session
 import MaxPlus as MP
 import pymxs
-rt = pymxs.runtimert
+rt = pymxs.runtime
 
 
 def open_file(filename):
@@ -31,9 +32,7 @@ def file_extensions():
     return ['.max']
 
 
-def work_root():
-    from avalon import Session
-
+def work_root():    
     work_dir = Session["AVALON_WORKDIR"]
     scene_dir = Session.get("AVALON_SCENEDIR")
     if scene_dir:
