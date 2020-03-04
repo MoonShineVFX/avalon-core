@@ -13,6 +13,8 @@ extends:Point
 		schema type:#string default:"avalon-core:container-2.0" ui:edt_schma
 		ava_name type:#string default:"None" ui:edt_name
 		loader type:#string default:"None" ui:edt_loader
+		object_name type:#string default:"None" ui:edt_objectName
+		namespace type:#string default:"None" ui:edt_namespace
 		representation type:#string default:"None" ui:edt_representation
 		avalon_nodes type:#nodeTab tabSize:0 tabSizeVariable:true
 	)
@@ -23,11 +25,15 @@ extends:Point
 		(
 			label lbl1 "Schema" align:#left 
 			edittext edt_schma width:140 align:#left offset:[-6,0] enabled:False
-			label lbl2 "Loader" align:#left
+			label lbl2 "Loader" align:#left			
 			edittext edt_loader width:140 align:#left offset:[-6,0] enabled:False
-			label lbl3 "Name" align:#left
+			label lbl3 "ObjectName" align:#left			
+			edittext edt_objectName width:140 align:#left offset:[-6,0] enabled:False
+			label lbl4 "Name" align:#left
 			edittext edt_name width:140 align:#left offset:[-6,0] enabled:False
-			label lbl4 "Representation" align:#left
+			label lbl5 "Namespace" align:#left
+			edittext edt_namespace width:140 align:#left offset:[-6,0] enabled:False
+			label lbl6 "Representation" align:#left
 			edittext edt_representation width:140 align:#left offset:[-6,0] enabled:False
 		)
 	)
