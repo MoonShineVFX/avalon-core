@@ -101,7 +101,10 @@ extends:Point
 		
 		fn pickFilter obj = 
 		(
-			local pickable = (obj.baseObject != this) and ((findItem avalon_nodes obj) == 0) and ((classof obj) != AvalonSetHelper)
+			local pickable = (obj.baseObject != this) and \
+			((findItem avalon_nodes obj) == 0) and \ 
+			((classof obj) != AvalonSet) and \
+			((classof obj) != AvalonContainer)
 		)
 		
 		function PickMultiple = --no fix needed
