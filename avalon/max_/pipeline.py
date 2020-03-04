@@ -18,7 +18,6 @@ from ..pipeline import create
 # from ..pipeline import update
 # from ..pipeline import remove
 from ..tools import workfiles
-
 import MaxPlus as MP
 from MaxPlus import NotificationCodes as NC
 from MaxPlus import NotificationManager as NM
@@ -53,7 +52,6 @@ def install():
     _set_project()
 
     _install_menu()
-    _setup_for_avalon()
 
     # register host
     pyblish.register_host("max_")
@@ -178,32 +176,6 @@ def _install_menu():
 
     QtCore.QTimer.singleShot(100, deferred)
 
-
-def _setup_for_avalon():
-    avalon_custAttr = """avalon_cust_def = attributes "avalon_container"
-    (
-        parameters avalon
-        (
-            schema type:#string
-            id type:#string
-            name_ type:#string
-            loader type:#string
-            representation type:#string
-            nodes type:#nodeTab tabSize:0 tabSizeVariable:True
-        )
-    )"""
-
-    try:
-        [cust_def for cust_def in rt.CustAttributes.getSceneDefs() if cust_def.name == 'avalon_container'][0]
-    except IndexError as _e:        
-        Ev_Mxs(avalon_custAttr)
-    
-    root_tv = rt.trackViewNodes
-    AVALON_CONTAINERS_NODE = rt.newTrackViewNode(root_tv, AVALON_CONTAINERS)
-    # Ex_Mxs('if trackviewnodes[#' + AVALON_CONTAINERS + '] == undefined do newTrackViewNode trackviewnodes "' + AVALON_CONTAINERS + '"')
-    # Ex_Mxs('(trackviewnodes[#' + AVALON_CONTAINERS + '] != undefined)')
-    return True
-    
 
 def _uninstall_menu():
     if MP.MenuManager.MenuExists(self._menu_name):
@@ -396,8 +368,6 @@ def ls():
 class Creator(api.Creator):
     
     def _create_ava_set_object(self):
-        import pymxs
-        rt = pymxs.runtime
         org_lay = rt.LayerManager.current
         ava_lay = rt.LayerManager.getLayerFromName('avalon')
         if not ava_lay:
@@ -405,24 +375,31 @@ class Creator(api.Creator):
         ava_lay.current = True
         # create layer for avalon
         
-        inst = rt.AvalonSetHelper()
+        inst = rt.AvalonSet()
         attrs = ['cross', 'box', 'centermarker', 'axistripod']
         for attr in attrs:
             rt.execute('$' + inst.name + '[4][1].' + attr + '=off')
         org_lay.current = True
         return inst
 
-    def process(self):        
+    def process(self):
         inst = self._create_ava_set_object()
 
         if (self.options or {}).get("useSelection"):
             inst_node = MP.INode.GetINodeByName(inst.name)
             avalon_nodes = inst_node.BaseObject.ParameterBlock.GetParamByName('avalon_nodes')
             
+            sel_objs = [obj for obj in rt.selection]
+            for obj in sel_objs:
+                class_ = rt.classOf(obj) 
+                if  class_ == rt.AvalonSet or class_ == rt.AvalonContainer:
+                    rt.deselect(obj)
+            # Exclude AvalonSet and AvalonContainer object
+
             new_list = MP.INodeList()
             for node in MP.SelectionManager.Nodes:
                 new_list.Append(node)
-            
+
             avalon_nodes.Value = new_list
         # inst = rt.newTrackViewNode(AVALON_CONTAINERS_NODE, self.name)
 
