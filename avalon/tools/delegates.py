@@ -1,3 +1,4 @@
+import locale
 import time
 from datetime import datetime
 import logging
@@ -9,6 +10,7 @@ from .. import io
 from .models import TreeModel
 
 log = logging.getLogger(__name__)
+local_encoding = locale.getlocale()[1]
 
 
 class VersionDelegate(QtWidgets.QStyledItemDelegate):
@@ -122,7 +124,7 @@ def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
             hours = second_diff // 3600
             return "{0}:{1:02d} hours ago".format(hours, minutes)
 
-    return t.strftime(strftime)
+    return t.strftime(strftime).decode(local_encoding)
 
 
 def pretty_timestamp(t, now=None):
