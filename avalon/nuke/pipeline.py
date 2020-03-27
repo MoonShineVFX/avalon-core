@@ -402,16 +402,11 @@ def _uninstall_menu():
 
 
 def _add_contextmanager_menu(menu):
-    from ..tools import contextmanager
-
     label = "{0}, {1}".format(
         api.Session["AVALON_ASSET"], api.Session["AVALON_TASK"]
     )
-    context_menu = menu.addMenu(label, index=0)
-    context_menu.addCommand("Set Context",
-                            lambda: contextmanager.show(
-                                parent=get_main_window())
-                            )
+    context_action = menu.addCommand(label)
+    context_action.setEnabled(False)
 
 
 def _update_menu_task_label():
