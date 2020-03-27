@@ -15,8 +15,8 @@
 ### Branch: Nolava
 
 This branch contains some MoonShine customized features, like:
-* conditional-env: A patch for using same environ var but different value between projects
-* 3dsmax-integration: Supporting 3DsMax 2018
+* [`e0863de`](https://github.com/MoonShineVFX/avalon-core/commit/e0863de77ed13545d0b68098e7c6a8b5124d681f) conditional-env: A patch for using same environ var but different value between projects
+* [`4048dcd`](https://github.com/MoonShineVFX/avalon-core/commit/4048dcd32a51436b4d90fcbfc4ffcd50aaa86364) 3dsmax-integration: Supporting 3DsMax 2018
 
 ### Testing
 
