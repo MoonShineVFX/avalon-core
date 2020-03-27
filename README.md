@@ -5,12 +5,18 @@
   The safe post-production pipeline
 </p>
 
-[![Build Status](https://travis-ci.org/getavalon/core.svg?branch=master)](https://travis-ci.org/getavalon/core) [![Coverage Status](https://coveralls.io/repos/github/getavalon/core/badge.svg?branch=master)](https://coveralls.io/github/getavalon/core?branch=master)
+[![Build Status](https://travis-ci.org/MoonShineVFX/avalon-core.svg?branch=nolava)](https://travis-ci.org/MoonShineVFX/avalon-core?branch=nolava) [![Coverage Status](https://coveralls.io/repos/github/MoonShineVFX/avalon-core/badge.svg?branch=nolava)](https://coveralls.io/github/MoonShineVFX/avalon-core?branch=nolava)
 
 - [Documentation](https://getavalon.github.io)
 - [Installation](https://getavalon.github.io/2.0/guides/#install)
 
 <br>
+
+### Branch: Nolava
+
+This branch contains some MoonShine customized features, like:
+* conditional-env: A patch for using same environ var but different value between projects
+* 3dsmax-integration: Supporting 3DsMax 2018
 
 ### Testing
 
