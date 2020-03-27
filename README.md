@@ -17,6 +17,7 @@
 This branch contains some MoonShine customized features, like:
 * [`e0863de`](https://github.com/MoonShineVFX/avalon-core/commit/e0863de77ed13545d0b68098e7c6a8b5124d681f) conditional-env: A patch for using same environ var but different value between projects
 * [`4048dcd`](https://github.com/MoonShineVFX/avalon-core/commit/4048dcd32a51436b4d90fcbfc4ffcd50aaa86364) 3dsmax-integration: Supporting 3DsMax 2018
+* [`4aaaaf3`](https://github.com/MoonShineVFX/avalon-core/commit/4aaaaf3de74e7f5c969df77715b0ae61518c00b4) #474-implementation: Nuke integration development
 
 ### Testing
 
