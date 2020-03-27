@@ -3,6 +3,7 @@ import sys
 import errno
 import importlib
 import contextlib
+
 # print("prepare Avalon Max Pipeline")
 
 from pyblish import api as pyblish
@@ -14,7 +15,7 @@ from ..vendor import six
 from ..vendor.Qt import QtCore, QtWidgets
 from ..pipeline import AVALON_CONTAINER_ID
 from ..pipeline import create
-# from ..pipeline import load
+from ..pipeline import load
 # from ..pipeline import update
 # from ..pipeline import remove
 from ..tools import workfiles
@@ -46,7 +47,7 @@ def install():
     '''config: module, get from AVALON_CONFIG'''
 
     self._menu_name = api.Session["AVALON_LABEL"]
-
+    
     _register_callbacks()
     _register_events()
     _set_project()
@@ -228,61 +229,6 @@ def uninstall(config):
     print("uninstall end")
 
 
-def load(Loader,
-         representation,
-         name=None,
-         namespace=None,
-         data=None):
-    """Load asset via database
-
-    Arguments:
-        Loader (api.Loader): The loader to process in host Max.
-        representation (dict, io.ObjectId or str): Address to representation
-        name (str, optional): Use pre-defined name
-        namespace (str, optional): Use pre-defined namespace
-        data (dict, optional): Additional settings dictionary
-
-    """
-    print("load")
-
-    assert representation is not None, "This is a bug"
-
-    if isinstance(representation, (six.string_types, io.ObjectId)):
-        representation = io.find_one({"_id": io.ObjectId(str(representation))})
-
-    version, subset, asset, project = io.parenthood(representation)
-
-    assert all([representation, version, subset, asset, project]), (
-        "This is a bug"
-    )
-
-    context = {
-        "project": project,
-        "asset": asset,
-        "subset": subset,
-        "version": version,
-        "representation": representation,
-    }
-
-    # Ensure data is a dictionary when no explicit data provided
-    if data is None:
-        data = dict()
-    assert isinstance(data, dict), "Data must be a dictionary"
-
-    name = name or subset["name"]
-    namespace = namespace or lib.unique_namespace(
-        asset["name"] + "_",
-        prefix="_" if asset["name"][0].isdigit() else "",
-        suffix="_",
-    )
-
-    # TODO(roy): add compatibility check, see `tools.cbloader.lib`
-
-    Loader.log.info(
-        "Running '%s' on '%s'" % (Loader.__name__, asset["name"])
-    )
-
-
 def containerise(name,
                  namespace,
                  nodes,
@@ -303,17 +249,15 @@ def containerise(name,
         suffix (str, optional): Suffix of container, defaults to `_CON`.
 
     Returns:
-        container (TrackViewNode): container assembly
+        container (AvalonContainer): container assembly
 
     """
 
-    ava_con = rt.newTrackViewNode(AVALON_CONTAINERS_NODE, name)
-    rt.CustAttributes.Add(ava_con, rt.avalon_cust_def)
-    ava_con.name_ = name
+    ava_con.ava_name = name
     ava_con.id = AVALON_CONTAINER_ID
     ava_con.loader = str(loader)
     ava_con.representation = context["representation"]["_id"]
-    ava_con.nodes = nodes
+    ava_con.avalon_nodes = nodes
 
     return ava_con
 
@@ -362,7 +306,10 @@ def ls():
     assets on disk, it lists assets already loaded in Max; once loaded
     they are called 'containers'
     """
-    pass
+    containers = [obj for obj in rt.helpers]
+    condi = lambda o:rt.classOf(o) == rt.AvalonContainer
+    containers = filter(condi, containers)
+    return containers
 
 
 class Creator(api.Creator):
