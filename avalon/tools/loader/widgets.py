@@ -4,7 +4,7 @@ import inspect
 import locale
 
 from ...vendor.Qt import QtWidgets, QtCore, QtCompat
-from ...vendor import qtawesome
+from ...vendor import qtawesome, six
 from ... import io
 from ... import api
 from ... import pipeline
@@ -356,7 +356,11 @@ class VersionTextEdit(QtWidgets.QTextEdit):
         # Define readable creation timestamp
         created = version["data"]["time"]
         created = datetime.datetime.strptime(created, "%Y%m%dT%H%M%SZ")
-        created = datetime.datetime.strftime(created, "%b %d %Y %H:%M").decode(local_encoding)
+        created = datetime.datetime.strftime(created, "%b %d %Y %H:%M")
+        if not six.PY3:
+            created = created.decode(local_encoding)
+            # For 3dsMax, the Python shipped with it force using OS lang on
+            # datetime formating, which may leads to unicode error.
 
         comment = version["data"].get("comment", None) or "No comment"
 
