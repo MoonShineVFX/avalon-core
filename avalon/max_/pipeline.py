@@ -10,7 +10,7 @@ from pyblish import api as pyblish
 
 from . import lib, workio
 from ..lib import logger
-from .. import api, io, schema, Session
+from .. import api, io, schema
 from ..vendor import six
 from ..vendor.Qt import QtCore, QtWidgets
 from ..pipeline import AVALON_CONTAINER_ID
@@ -187,8 +187,8 @@ def _uninstall_menu():
             MP.MenuManager.UnregisterMenu(context_menu_name)
 
 
-def launch_workfiles_app(*args):    
-    workfiles.show(workio.work_root(), parent=args[0])
+def launch_workfiles_app(*args):
+    workfiles.show(workio.work_root(api.Session), parent=args[0])
 
 
 def find_host_config(config):
