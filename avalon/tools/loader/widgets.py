@@ -1,9 +1,10 @@
 import datetime
 import pprint
 import inspect
+import locale
 
 from ...vendor.Qt import QtWidgets, QtCore, QtCompat
-from ...vendor import qtawesome
+from ...vendor import qtawesome, six
 from ... import io
 from ... import api
 from ... import pipeline
@@ -17,7 +18,9 @@ from .model import (
     SubsetFilterProxyModel,
     FamiliesFilterProxyModel,
 )
-from .delegates import PrettyTimeDelegate
+from ..delegates import PrettyTimeDelegate
+
+local_encoding = locale.getlocale()[1]
 
 
 class SubsetWidget(QtWidgets.QWidget):
@@ -354,6 +357,10 @@ class VersionTextEdit(QtWidgets.QTextEdit):
         created = version["data"]["time"]
         created = datetime.datetime.strptime(created, "%Y%m%dT%H%M%SZ")
         created = datetime.datetime.strftime(created, "%b %d %Y %H:%M")
+        if not six.PY3 and local_encoding is not None:
+            created = created.decode(local_encoding)
+            # For 3dsMax, the Python shipped with it force using OS lang on
+            # datetime formating, which may leads to unicode error.
 
         comment = version["data"].get("comment", None) or "No comment"
 
