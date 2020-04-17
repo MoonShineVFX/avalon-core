@@ -126,7 +126,7 @@ def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
             return "{0}:{1:02d} hours ago".format(hours, minutes)
 
     pretty = t.strftime(strftime)
-    if six.PY3:
+    if six.PY3 or local_encoding is None:
         return pretty
     else:
         # For 3dsMax, the Python shipped with it force using OS lang on
