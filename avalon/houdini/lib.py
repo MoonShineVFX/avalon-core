@@ -52,6 +52,12 @@ def imprint(node, data):
                                           label=key,
                                           num_components=1,
                                           default_value=(value,))
+        elif isinstance(value, (list, tuple)):
+            parm = hou.StringParmTemplate(name=key,
+                                          label=key,
+                                          num_components=1,
+                                          menu_items=value,
+                                          default_value=(value[0],))
         else:
             raise TypeError("Unsupported type: %r" % type(value))
 
