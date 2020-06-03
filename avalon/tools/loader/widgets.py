@@ -176,9 +176,15 @@ class SubsetWidget(QtWidgets.QWidget):
         enable_option = len(rows) == 1
 
         def sorter(value):
-            """Sort the Loaders by their order and then their name"""
-            Plugin = value[1]
-            return Plugin.order, Plugin.__name__
+            """Sort the Loaders by their plugin order and then their name"""
+            repr, Plugin = value
+
+            if repr["name"] in Plugin.representations:
+                repre_order = Plugin.representations.index(repr["name"])
+            else:
+                repre_order = -1  # '*'
+
+            return Plugin.order, repre_order, Plugin.__name__
 
         # List the available loaders
         menu = OptionalMenu(self)
