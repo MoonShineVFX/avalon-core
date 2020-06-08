@@ -55,7 +55,7 @@ class VersionDelegate(SpinIconDelegate):
 
     def paint(self, painter, option, index):
         item = index.data(TreeModel.ItemRole)
-        if item.get("isGroup") or item.get("version_document"):
+        if item.get("isGroup") or item.get("version"):
             super(VersionDelegate, self).paint(painter, option, index)
             return
 
@@ -66,7 +66,7 @@ class VersionDelegate(SpinIconDelegate):
         if item.get("isGroup"):
             return
 
-        if not item.get("version_document"):
+        if not item.get("version"):
             last_version = io.find_one({"type": "version",
                                         "parent": item["_id"]},
                                        sort=[("name", -1)])
