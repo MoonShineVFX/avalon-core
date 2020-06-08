@@ -205,8 +205,6 @@ class SubsetsModel(TreeModel):
 
         # Process subsets
         for subset in io.find(filter):
-            if not self._subset_producing:
-                return
 
             data = subset.copy()
             data["subset"] = data["name"]
