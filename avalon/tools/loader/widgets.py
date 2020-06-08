@@ -110,6 +110,7 @@ class SubsetWidget(QtWidgets.QWidget):
         selection.selectionChanged.connect(self.active_changed)
 
         version_delegate.version_changed.connect(self.version_changed)
+        version_delegate.repaint_needed.connect(self.update)
 
         groupable.stateChanged.connect(self.set_grouping)
 
@@ -130,13 +131,12 @@ class SubsetWidget(QtWidgets.QWidget):
             self.model.set_grouping(state)
 
     def on_context_menu(self, point):
-
         point_index = self.view.indexAt(point)
         if not point_index.isValid():
             return
 
         node = point_index.data(self.model.ItemRole)
-        if node.get("isGroup"):
+        if node.get("isGroup") or not node.get("version_document"):
             return
 
         # Get all representation->loader combinations available for the
@@ -176,11 +176,15 @@ class SubsetWidget(QtWidgets.QWidget):
         enable_option = len(rows) == 1
 
         def sorter(value):
-            """Sort the Loaders by their order and then their name"""
+            """Sort the Loaders by their plugin order and then their name"""
             repr, Plugin = value
-            is_asterisk = repr not in Plugin.representations
-            r_order = -1 if is_asterisk else Plugin.representations.index(repr)
-            return r_order, Plugin.order, Plugin.__name__
+
+            if repr["name"] in Plugin.representations:
+                repre_order = Plugin.representations.index(repr["name"])
+            else:
+                repre_order = -1  # '*'
+
+            return Plugin.order, repre_order, Plugin.__name__
 
         # List the available loaders
         menu = OptionalMenu(self)
