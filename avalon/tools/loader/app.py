@@ -162,9 +162,7 @@ class Window(QtWidgets.QDialog):
         """Selected assets have changed"""
 
         assets_model = self.data["model"]["assets"]
-        subsets = self.data["model"]["subsets"]
-        subsets_model = subsets.model
-        subsets_model.clear()
+        subsets_model = self.data["model"]["subsets"].model
 
         t1 = time.time()
 
@@ -207,7 +205,11 @@ class Window(QtWidgets.QDialog):
             if active in rows:
                 node = active.data(subsets.model.ItemRole)
                 if node is not None and not node.get("isGroup"):
-                    version = node["version_document"]["_id"]
+                    if "version_document" in node:
+                        version = node["version_document"]["_id"]
+                    else:
+                        # Version not ready
+                        pass
 
         self.data["model"]["version"].set_version(version)
 
@@ -262,13 +264,8 @@ class Window(QtWidgets.QDialog):
             print("Force quitted..")
             self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        # Kill on holding SHIFT
-        modifiers = QtWidgets.QApplication.queryKeyboardModifiers()
-        shift_pressed = QtCore.Qt.ShiftModifier & modifiers
-
-        if shift_pressed:
-            print("Force quitted..")
-            self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        # Ensure version fetching thread stopped
+        self.data["model"]["subsets"].model.clear()
 
         print("Good bye")
         return super(Window, self).closeEvent(event)

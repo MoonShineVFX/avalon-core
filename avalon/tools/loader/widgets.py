@@ -110,6 +110,7 @@ class SubsetWidget(QtWidgets.QWidget):
         selection.selectionChanged.connect(self.active_changed)
 
         version_delegate.version_changed.connect(self.version_changed)
+        version_delegate.repaint_needed.connect(self.update)
 
         groupable.stateChanged.connect(self.set_grouping)
 
@@ -130,15 +131,12 @@ class SubsetWidget(QtWidgets.QWidget):
             self.model.set_grouping(state)
 
     def on_context_menu(self, point):
-        if self.model.is_loading():
-            return
-
         point_index = self.view.indexAt(point)
         if not point_index.isValid():
             return
 
         node = point_index.data(self.model.ItemRole)
-        if node.get("isGroup"):
+        if node.get("isGroup") or not node.get("version_document"):
             return
 
         # Get all representation->loader combinations available for the
