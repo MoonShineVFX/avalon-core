@@ -41,7 +41,14 @@ class SubsetsModel(TreeModel):
         self._sorter = None
         self._grouping = grouping
         self._icons = {
-            "subset": qtawesome.icon("fa.file-o", color=style.colors.default)
+            "subset": qtawesome.icon("fa.file-o", color=style.colors.default),
+            "version": qtawesome.icon("fa.check", color="#464646"),
+            # Version in progressive publishing
+            "version.0": qtawesome.icon("fa.thermometer-0", color="#e53935"),
+            "version.1": qtawesome.icon("fa.thermometer-1", color="#f57c00"),
+            "version.2": qtawesome.icon("fa.thermometer-2", color="#f9a825"),
+            "version.3": qtawesome.icon("fa.thermometer-3", color="#9e9d24"),
+            "version.4": qtawesome.icon("fa.thermometer-4", color="#7cb342"),
         }
 
     def set_asset(self, asset_id):
@@ -141,6 +148,13 @@ class SubsetsModel(TreeModel):
             "step": version_data.get("step", None)
         })
 
+        if version_data.get("progress"):
+            progress = version_data["progress"]
+            rate = progress["current"] / float(progress["total"])
+            item["progress"] = int(rate * 4)
+        else:
+            item["progress"] = None
+
     def refresh(self):
 
         self.clear()
@@ -231,6 +245,17 @@ class SubsetsModel(TreeModel):
             if index.column() == self.columns_index["family"]:
                 item = index.internalPointer()
                 return item.get("familyIcon", None)
+
+            # Add icon to version column
+            if index.column() == self.columns_index["version"]:
+                item = index.internalPointer()
+                if item.get("isGroup"):
+                    return None
+                elif item.get("progress") is None:
+                    return self._icons["version"]
+                else:
+                    print(item["progress"])
+                    return self._icons["version.%d" % item["progress"]]
 
         if role == self.SortDescendingRole:
             item = index.internalPointer()
