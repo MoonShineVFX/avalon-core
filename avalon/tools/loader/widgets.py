@@ -101,21 +101,15 @@ class SubsetWidget(QtWidgets.QWidget):
         self.view.setModel(self.family_proxy)
         self.view.customContextMenuRequested.connect(self.on_context_menu)
 
-        view.setColumnWidth(0, 240)  # subset
-        view.setColumnWidth(1, 120)  # family
-        view.setColumnWidth(2, 80)   # version
-        view.setColumnWidth(3, 120)  # time
-        view.setColumnWidth(4, 100)  # author
-        view.setColumnWidth(5, 80)   # frames
-        view.setColumnWidth(6, 60)   # duration
-        view.setColumnWidth(7, 60)   # handles
-        view.setColumnWidth(8, 60)   # step
+        header = self.view.header()
+        # Enforce the columns to fit the data (purely cosmetic)
+        QtCompat.setSectionResizeMode(
+            header, QtWidgets.QHeaderView.ResizeToContents)
 
         selection = view.selectionModel()
         selection.selectionChanged.connect(self.active_changed)
 
         version_delegate.version_changed.connect(self.version_changed)
-        version_delegate.repaint_needed.connect(self.update)
 
         groupable.stateChanged.connect(self.set_grouping)
 
@@ -136,6 +130,7 @@ class SubsetWidget(QtWidgets.QWidget):
             self.model.set_grouping(state)
 
     def on_context_menu(self, point):
+
         point_index = self.view.indexAt(point)
         if not point_index.isValid():
             return
@@ -165,6 +160,7 @@ class SubsetWidget(QtWidgets.QWidget):
         available_loaders = api.discover(api.Loader)
         loaders = list()
 
+        version_id = node["version_document"]["_id"]
         representations = io.find({"type": "representation",
                                    "parent": version_id})
         for representation in representations:
@@ -281,10 +277,7 @@ class SubsetWidget(QtWidgets.QWidget):
             if node.get("isGroup"):
                 continue
 
-            version_id = get_version_id(node)
-            if version_id is None:
-                continue
-
+            version_id = node["version_document"]["_id"]
             representation = io.find_one({"type": "representation",
                                           "name": representation_name,
                                           "parent": version_id})

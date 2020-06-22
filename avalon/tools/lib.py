@@ -478,15 +478,3 @@ def project_use_silo(project_doc):
         if "{silo}" in template:
             return True
     return False
-
-
-def create_qthread(func, *args, **kwargs):
-    class Thread(QtCore.QThread):
-        def run(self):
-            func(*args, **kwargs)
-    return Thread()
-
-
-def is_interruption_requested():
-    # Only available in Qt >= 5.2
-    return QtCore.QThread.currentThread().isInterruptionRequested()
