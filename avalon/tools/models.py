@@ -1,4 +1,5 @@
 import re
+import os
 import logging
 import collections
 
@@ -431,7 +432,6 @@ class AssetModel(TreeModel):
 
             column = index.column()
             if column == self.Name:
-
                 # Allow a custom icon and custom icon color to be defined
                 data = item.get("_document", {}).get("data", {})
                 icon = data.get("icon", None)
