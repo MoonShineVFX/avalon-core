@@ -21,7 +21,7 @@ import os
 import warnings
 
 # Third party imports
-from six import unichr
+from ..six import unichr
 from ..Qt.QtCore import QByteArray, QObject, QPoint, QRect, Qt
 from ..Qt.QtGui import (QColor, QFont, QFontDatabase, QIcon, QIconEngine,
                         QPainter, QPixmap, QTransform)

@@ -1,9 +1,9 @@
 
 import sys
 
-from qtpy import QtCore, QtGui, QtWidgets
+from ..Qt import QtCore, QtGui, QtWidgets
 
-import qtawesome
+from .. import qtawesome
 
 
 # TODO: Set icon colour and copy code with color kwarg
