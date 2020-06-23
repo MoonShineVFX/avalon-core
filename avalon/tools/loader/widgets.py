@@ -4,7 +4,7 @@ import pprint
 import inspect
 import locale
 
-from ...vendor.Qt import QtWidgets, QtCore, QtGui, QtSvg, QtCompat
+from ...vendor.Qt import QtWidgets, QtCore, QtGui, QtSvg
 from ...vendor import qtawesome, six
 from ... import io
 from ... import api
@@ -136,14 +136,17 @@ class SubsetWidget(QtWidgets.QWidget):
                                           current_index=False):
             self.model.set_grouping(state)
 
-    def set_loading_state(self, state):
+    def set_loading_state(self, loading, empty):
         view = self.view
-        if bool(view.is_loading) != bool(state):  # state could be None
-            view.is_loading = state
-            if state:
+
+        if view.is_loading != loading:
+            if loading:
                 view.spinner.repaintNeeded.connect(view.viewport().update)
             else:
                 view.spinner.repaintNeeded.disconnect()
+
+        view.is_loading = loading
+        view.is_empty = empty
 
     def on_context_menu(self, point):
 
@@ -343,27 +346,31 @@ class SubsetTreeView(QtWidgets.QTreeView):
 
         self.spinner = spinner
         self.is_loading = False
+        self.is_empty = True
 
     def paint_loading(self, event):
         size = 160
         rect = event.rect()
+        rect = QtCore.QRectF(rect.topLeft(), rect.bottomRight())
         rect.moveTo(rect.x() + rect.width() / 2 - size / 2,
                     rect.y() + rect.height() / 2 - size / 2)
-        rect.setSize(QtCore.QSize(size, size))
+        rect.setSize(QtCore.QSizeF(size, size))
         painter = QtGui.QPainter(self.viewport())
         self.spinner.render(painter, rect)
 
     def paint_empty(self, event):
         painter = QtGui.QPainter(self.viewport())
-        painter.drawText(event.rect(),
-                         "No Data",
-                         QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
+        rect = event.rect()
+        rect = QtCore.QRectF(rect.topLeft(), rect.bottomRight())
+        qtext_opt = QtGui.QTextOption(QtCore.Qt.AlignHCenter |
+                                      QtCore.Qt.AlignVCenter)
+        painter.drawText(rect, "No Data", qtext_opt)
 
     def paintEvent(self, event):
-        if self.is_loading is None:
-            self.paint_empty(event)
-        elif self.is_loading:
+        if self.is_loading:
             self.paint_loading(event)
+        elif self.is_empty:
+            self.paint_empty(event)
         else:
             super(SubsetTreeView, self).paintEvent(event)
 
