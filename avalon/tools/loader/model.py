@@ -254,7 +254,6 @@ class SubsetsModel(TreeModel):
                 elif item.get("progress") is None:
                     return self._icons["version"]
                 else:
-                    print(item["progress"])
                     return self._icons["version.%d" % item["progress"]]
 
         if role == self.SortDescendingRole:
