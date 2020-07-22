@@ -156,6 +156,8 @@ def find_copies(source, group=None, recursive=True):
             default True.
 
     """
+    assert isinstance(source, nuke.Node), "`Source` needs to be a nuke node."
+
     copies = list()
     source_id = get_id(source)
     if source_id:
@@ -166,6 +168,11 @@ def find_copies(source, group=None, recursive=True):
                          #        `recurseGroups=True`.
                          group=group,
                          recursive=recursive)
+
+    # Dont return the source.
+    if source in copies:
+        copies.remove(source)
+
     return copies
 
 
@@ -221,12 +228,20 @@ def sync_copies(nodes, force=False):
         origin[node] = sources
 
         for copy in find_copies(node):
+            copy_name = copy.fullName()
+
             for name, knob in copy.knobs().items():
                 if name not in sources:
                     continue
                 # Only update knob that hasn't been modified
                 if force or is_knob_eq(sources[name], knob):
-                    targets.append(knob.fullyQualifiedName())
+                    # (NOTE) If current Nuke session has multiple views, like
+                    #   working on stereo shot, `knob.fullyQualifiedName` will
+                    #   append current view at the end of the knob name, for
+                    #   example "renderlayer.Read1.first.left".
+                    #   Assemble from node's full name and knob name to avoid
+                    #   that.
+                    targets.append("%s.%s" % (copy_name, knob.name()))
 
         if targets:
             staged[node] = targets
