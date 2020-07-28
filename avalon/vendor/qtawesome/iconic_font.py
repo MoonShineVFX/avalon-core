@@ -1,27 +1,68 @@
-"""Classes handling iconic fonts"""
+r"""
 
+Iconic Font
+===========
+
+A lightweight module handling iconic fonts.
+
+It is designed to provide a simple way for creating QIcons from glyphs.
+
+From a user's viewpoint, the main entry point is the ``IconicFont`` class which
+contains methods for loading new iconic fonts with their character map and
+methods returning instances of ``QIcon``.
+
+"""
+
+# Standard library imports
 from __future__ import print_function
-
+import hashlib
 import json
 import os
+import warnings
 
-from .. import six
-from ..Qt import QtCore, QtGui
+# Third party imports
+from ..six import unichr
+from ..Qt.QtCore import QByteArray, QObject, QPoint, QRect, Qt
+from ..Qt.QtGui import (QColor, QFont, QFontDatabase, QIcon, QIconEngine,
+                        QPainter, QPixmap, QTransform)
+from ..Qt.QtWidgets import QApplication
 
+# Linux packagers, please set this to True if you want to make qtawesome
+# use system fonts
+SYSTEM_FONTS = False
+
+# MD5 Hashes for font files bundled with qtawesome:
+MD5_HASHES = {
+    'fontawesome4.7-webfont.ttf': 'b06871f281fee6b241d60582ae9369b9',
+    'fontawesome5-regular-webfont.ttf': '6a745dc6a0871f350b0219f5a2678838',
+    'fontawesome5-solid-webfont.ttf': 'acf50f59802f20d8b45220eaae532a1c',
+    'fontawesome5-brands-webfont.ttf': 'ed2b8bf117160466ba6220a8f1da54a4',
+    'elusiveicons-webfont.ttf': '207966b04c032d5b873fd595a211582e',
+    'materialdesignicons-webfont.ttf': 'f51112347be6b44f9ef46151a971430d',
+}
 
 _default_options = {
-    'color': QtGui.QColor(50, 50, 50),
-    'color_disabled': QtGui.QColor(150, 150, 150),
+    'color': QColor(50, 50, 50),
+    'color_disabled': QColor(150, 150, 150),
     'opacity': 1.0,
     'scale_factor': 1.0,
 }
 
 
 def set_global_defaults(**kwargs):
-    """Set global defaults for all icons"""
-    valid_options = ['active', 'animation', 'color', 'color_active',
-                     'color_disabled', 'color_selected', 'disabled', 'offset',
-                     'scale_factor', 'selected']
+    """Set global defaults for the options passed to the icon painter."""
+
+    valid_options = [
+        'active', 'selected', 'disabled', 'on', 'off',
+        'on_active', 'on_selected', 'on_disabled',
+        'off_active', 'off_selected', 'off_disabled',
+        'color', 'color_on', 'color_off',
+        'color_active', 'color_selected', 'color_disabled',
+        'color_on_selected', 'color_on_active', 'color_on_disabled',
+        'color_off_selected', 'color_off_active', 'color_off_disabled',
+        'animation', 'offset', 'scale_factor', 'rotated', 'hflip', 'vflip'
+        ]
+
     for kw in kwargs:
         if kw in valid_options:
             _default_options[kw] = kwargs[kw]
@@ -32,34 +73,51 @@ def set_global_defaults(**kwargs):
 
 class CharIconPainter:
 
-    """Char icon painter"""
+    """Char icon painter."""
 
     def paint(self, iconic, painter, rect, mode, state, options):
-        """Main paint method"""
+        """Main paint method."""
         for opt in options:
             self._paint_icon(iconic, painter, rect, mode, state, opt)
 
     def _paint_icon(self, iconic, painter, rect, mode, state, options):
-        """Paint a single icon"""
+        """Paint a single icon."""
         painter.save()
-        color, char = options['color'], options['char']
+        color = options['color']
+        char = options['char']
 
-        if mode == QtGui.QIcon.Disabled:
-            color = options.get('color_disabled', color)
-            char = options.get('disabled', char)
-        elif mode == QtGui.QIcon.Active:
-            color = options.get('color_active', color)
-            char = options.get('active', char)
-        elif mode == QtGui.QIcon.Selected:
-            color = options.get('color_selected', color)
-            char = options.get('selected', char)
+        color_options = {
+            QIcon.On: {
+                QIcon.Normal: (options['color_on'], options['on']),
+                QIcon.Disabled: (options['color_on_disabled'],
+                                 options['on_disabled']),
+                QIcon.Active: (options['color_on_active'],
+                               options['on_active']),
+                QIcon.Selected: (options['color_on_selected'],
+                                 options['on_selected'])
+            },
 
-        painter.setPen(QtGui.QColor(color))
+            QIcon.Off: {
+                QIcon.Normal: (options['color_off'], options['off']),
+                QIcon.Disabled: (options['color_off_disabled'],
+                                 options['off_disabled']),
+                QIcon.Active: (options['color_off_active'],
+                               options['off_active']),
+                QIcon.Selected: (options['color_off_selected'],
+                                 options['off_selected'])
+            }
+        }
+
+        color, char = color_options[state][mode]
+
+        painter.setPen(QColor(color))
+
         # A 16 pixel-high icon yields a font size of 14, which is pixel perfect
         # for font-awesome. 16 * 0.875 = 14
-        # The reason for not using full-sized glyphs is the negative bearing of
-        # fonts.
-        draw_size = 0.875 * round(rect.height() * options['scale_factor'])
+        # The reason why the glyph size is smaller than the icon size is to
+        # account for font bearing.
+
+        draw_size = round(0.875 * rect.height() * options['scale_factor'])
         prefix = options['prefix']
 
         # Animation setup hook
@@ -69,21 +127,48 @@ class CharIconPainter:
 
         painter.setFont(iconic.font(prefix, draw_size))
         if 'offset' in options:
-            rect = QtCore.QRect(rect)
-            rect.translate(options['offset'][0] * rect.width(),
-                           options['offset'][1] * rect.height())
+            rect = QRect(rect)
+            rect.translate(round(options['offset'][0] * rect.width()),
+                           round(options['offset'][1] * rect.height()))
+
+        if 'vflip' in options and options['vflip'] == True:
+            x_center = rect.width() * 0.5
+            y_center = rect.height() * 0.5
+            painter.translate(x_center, y_center)
+            transfrom = QTransform()
+            transfrom.scale(1,-1)
+            painter.setTransform(transfrom, True)
+            painter.translate(-x_center, -y_center)
+
+        if 'hflip' in options and options['hflip'] == True:
+            x_center = rect.width() * 0.5
+            y_center = rect.height() * 0.5
+            painter.translate(x_center, y_center)
+            transfrom = QTransform()
+            transfrom.scale(-1, 1)
+            painter.setTransform(transfrom, True)
+            painter.translate(-x_center, -y_center)
+
+        if 'rotated' in options:
+            x_center = rect.width() * 0.5
+            y_center = rect.height() * 0.5
+            painter.translate(x_center, y_center)
+            painter.rotate(options['rotated'])
+            painter.translate(-x_center, -y_center)
 
         painter.setOpacity(options.get('opacity', 1.0))
 
-        painter.drawText(rect,
-                         QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter,
-                         char)
+        painter.drawText(rect, int(Qt.AlignCenter | Qt.AlignVCenter), char)
         painter.restore()
 
 
-class CharIconEngine(QtGui.QIconEngine):
+class FontError(Exception):
+    """Exception for font errors."""
 
-    """Specialization of QtGui.QIconEngine used to draw font-based icons"""
+
+class CharIconEngine(QIconEngine):
+
+    """Specialization of QIconEngine used to draw font-based icons."""
 
     def __init__(self, iconic, painter, options):
         super(CharIconEngine, self).__init__()
@@ -96,134 +181,196 @@ class CharIconEngine(QtGui.QIconEngine):
             self.iconic, painter, rect, mode, state, self.options)
 
     def pixmap(self, size, mode, state):
-        pm = QtGui.QPixmap(size)
-        pm.fill(QtCore.Qt.transparent)
-        self.paint(QtGui.QPainter(pm),
-                   QtCore.QRect(QtCore.QPoint(0, 0), size),
-                   mode,
-                   state)
+        pm = QPixmap(size)
+        pm.fill(Qt.transparent)
+        self.paint(QPainter(pm), QRect(QPoint(0, 0), size), mode, state)
         return pm
 
 
-class IconicFont(QtCore.QObject):
+class IconicFont(QObject):
 
-    """Main class for managing iconic fonts"""
+    """Main class for managing iconic fonts."""
 
     def __init__(self, *args):
-        """Constructor
+        """IconicFont Constructor.
 
-        :param *args: tuples
-            Each positional argument is a tuple of 3 or 4 values
-            - The prefix string to be used when accessing a given font set
-            - The ttf font filename
-            - The json charmap filename
+        Parameters
+        ----------
+        ``*args``: tuples
+            Each positional argument is a tuple of 3 or 4 values:
+            - The prefix string to be used when accessing a given font set,
+            - The ttf font filename,
+            - The json charmap filename,
             - Optionally, the directory containing these files. When not
-              provided, the files will be looked up in ./fonts/
+              provided, the files will be looked for in ``./fonts/``.
         """
         super(IconicFont, self).__init__()
         self.painter = CharIconPainter()
         self.painters = {}
         self.fontname = {}
         self.charmap = {}
+        self.icon_cache = {}
         for fargs in args:
             self.load_font(*fargs)
 
-    def load_font(self,
-                  prefix,
-                  ttf_filename,
-                  charmap_filename,
-                  directory=None):
-        """Loads a font file and the associated charmap
+    def load_font(self, prefix, ttf_filename, charmap_filename, directory=None):
+        """Loads a font file and the associated charmap.
 
-        If `directory` is None, the files will be looked up in ./fonts/
+        If ``directory`` is None, the files will be looked for in ``./fonts/``.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         prefix: str
-            prefix string to be used when accessing a given font set
+            Prefix string to be used when accessing a given font set
         ttf_filename: str
-            ttf font filename
+            Ttf font filename
         charmap_filename: str
-            charmap filename
+            Charmap filename
         directory: str or None, optional
-            directory for font and charmap files
+            Directory for font and charmap files
         """
 
         def hook(obj):
             result = {}
             for key in obj:
-                result[key] = six.unichr(int(obj[key], 16))
+                try:
+                    result[key] = unichr(int(obj[key], 16))
+                except ValueError:
+                    if int(obj[key], 16) > 0xffff:
+                        # ignoring unsupported code in Python 2.7 32bit Windows
+                        # ValueError: unichr() arg not in range(0x10000)
+                        pass
+                    else:
+                        raise FontError(u'Failed to load character '
+                                        '{0}:{1}'.format(key, obj[key]))
             return result
 
         if directory is None:
             directory = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)), 'fonts')
 
-        with open(os.path.join(directory, charmap_filename), 'r') as codes:
-            self.charmap[prefix] = json.load(codes, object_hook=hook)
+        # Load font
+        if QApplication.instance() is not None:
+            with open(os.path.join(directory, ttf_filename), 'rb') as font_data:
+                id_ = QFontDatabase.addApplicationFontFromData(QByteArray(font_data.read()))
+            font_data.close()
 
-        id_ = QtGui.QFontDatabase.addApplicationFont(
-            os.path.join(directory, ttf_filename))
+            loadedFontFamilies = QFontDatabase.applicationFontFamilies(id_)
 
-        loadedFontFamilies = QtGui.QFontDatabase.applicationFontFamilies(id_)
+            if loadedFontFamilies:
+                self.fontname[prefix] = loadedFontFamilies[0]
+            else:
+                raise FontError(u"Font at '{0}' appears to be empty. "
+                                "If you are on Windows 10, please read "
+                                "https://support.microsoft.com/"
+                                "en-us/kb/3053676 "
+                                "to know how to prevent Windows from blocking "
+                                "the fonts that come with QtAwesome.".format(
+                                        os.path.join(directory, ttf_filename)))
 
-        if(loadedFontFamilies):
-            self.fontname[prefix] = loadedFontFamilies[0]
-        else:
-            print('Font is empty')
+            with open(os.path.join(directory, charmap_filename), 'r') as codes:
+                self.charmap[prefix] = json.load(codes, object_hook=hook)
+
+            # Verify that vendorized fonts are not corrupt
+            if not SYSTEM_FONTS:
+                ttf_hash = MD5_HASHES.get(ttf_filename, None)
+                if ttf_hash is not None:
+                    hasher = hashlib.md5()
+                    with open(os.path.join(directory, ttf_filename),
+                              'rb') as f:
+                        content = f.read()
+                        hasher.update(content)
+                    ttf_calculated_hash_code = hasher.hexdigest()
+                    if ttf_calculated_hash_code != ttf_hash:
+                        raise FontError(u"Font is corrupt at: '{0}'".format(
+                                        os.path.join(directory, ttf_filename)))
 
     def icon(self, *names, **kwargs):
-        """Returns a QtGui.QIcon object corresponding to the provided icon name
-        (including prefix)
+        """Return a QIcon object corresponding to the provided icon name."""
+        cache_key = '{}{}'.format(names,kwargs)
+        if cache_key not in self.icon_cache:
+            options_list = kwargs.pop('options', [{}] * len(names))
+            general_options = kwargs
 
-        Arguments
-        ---------
-        names: list of str
-            icon name, of the form PREFIX.NAME
+            if len(options_list) != len(names):
+                error = '"options" must be a list of size {0}'.format(len(names))
+                raise Exception(error)
 
-        options: dict
-            options to be passed to the icon painter
-        """
-        options_list = kwargs.pop('options', [{}] * len(names))
-        general_options = kwargs
+            if QApplication.instance() is not None:
+                parsed_options = []
+                for i in range(len(options_list)):
+                    specific_options = options_list[i]
+                    parsed_options.append(self._parse_options(specific_options,
+                                                              general_options,
+                                                              names[i]))
 
-        if len(options_list) != len(names):
-            error = '"options" must be a list of size {0}'.format(len(names))
-            raise Exception(error)
+                # Process high level API
+                api_options = parsed_options
 
-        parsed_options = []
-        for i in range(len(options_list)):
-            specific_options = options_list[i]
-            parsed_options.append(self._parse_options(specific_options,
-                                                      general_options,
-                                                      names[i]))
-
-        # Process high level API
-        api_options = parsed_options
-
-        return self._icon_by_painter(self.painter, api_options)
+                self.icon_cache[cache_key] = self._icon_by_painter(self.painter, api_options)
+            else:
+                warnings.warn("You need to have a running "
+                              "QApplication to use QtAwesome!")
+                return QIcon()
+        return self.icon_cache[cache_key]
 
     def _parse_options(self, specific_options, general_options, name):
-        """ """
         options = dict(_default_options, **general_options)
         options.update(specific_options)
 
-        # Handle icons for states
-        icon_kw = ['disabled', 'active', 'selected', 'char']
-        names = [options.get(kw, name) for kw in icon_kw]
+        # Handle icons for modes (Active, Disabled, Selected, Normal)
+        # and states (On, Off)
+        icon_kw = ['char', 'on', 'off', 'active', 'selected', 'disabled',
+                   'on_active', 'on_selected', 'on_disabled', 'off_active',
+                   'off_selected', 'off_disabled']
+        char = options.get('char', name)
+        on = options.get('on', char)
+        off = options.get('off', char)
+        active = options.get('active', on)
+        selected = options.get('selected', active)
+        disabled = options.get('disabled', char)
+        on_active = options.get('on_active', active)
+        on_selected = options.get('on_selected', selected)
+        on_disabled = options.get('on_disabled', disabled)
+        off_active = options.get('off_active', active)
+        off_selected = options.get('off_selected', selected)
+        off_disabled = options.get('off_disabled', disabled)
+
+        icon_dict = {'char': char,
+                     'on': on,
+                     'off': off,
+                     'active': active,
+                     'selected': selected,
+                     'disabled': disabled,
+                     'on_active': on_active,
+                     'on_selected': on_selected,
+                     'on_disabled': on_disabled,
+                     'off_active': off_active,
+                     'off_selected': off_selected,
+                     'off_disabled': off_disabled,
+                     }
+        names = [icon_dict.get(kw, name) for kw in icon_kw]
         prefix, chars = self._get_prefix_chars(names)
         options.update(dict(zip(*(icon_kw, chars))))
         options.update({'prefix': prefix})
 
-        # Handle colors for states
-        color_kw = ['color_active', 'color_selected']
-        colors = [options.get(kw, options['color']) for kw in color_kw]
-        options.update(dict(zip(*(color_kw, colors))))
+        # Handle colors for modes (Active, Disabled, Selected, Normal)
+        # and states (On, Off)
+        color = options.get('color')
+        options.setdefault('color_on', color)
+        options.setdefault('color_active', options['color_on'])
+        options.setdefault('color_selected', options['color_active'])
+        options.setdefault('color_on_active', options['color_active'])
+        options.setdefault('color_on_selected', options['color_selected'])
+        options.setdefault('color_on_disabled', options['color_disabled'])
+        options.setdefault('color_off', color)
+        options.setdefault('color_off_active', options['color_active'])
+        options.setdefault('color_off_selected', options['color_selected'])
+        options.setdefault('color_off_disabled', options['color_disabled'])
 
         return options
 
     def _get_prefix_chars(self, names):
-        """ """
         chars = []
         for name in names:
             if '.' in name:
@@ -244,44 +391,39 @@ class IconicFont(QtCore.QObject):
         return prefix, chars
 
     def font(self, prefix, size):
-        """Returns QtGui.QFont corresponding to the given prefix and size
-
-        Arguments
-        ---------
-        prefix: str
-            prefix string of the loaded font
-        size: int
-            size for the font
-        """
-        font = QtGui.QFont(self.fontname[prefix])
-        font.setPixelSize(size)
+        """Return a QFont corresponding to the given prefix and size."""
+        font = QFont(self.fontname[prefix])
+        font.setPixelSize(round(size))
+        if prefix[-1] == 's':  # solid style
+            font.setStyleName('Solid')
         return font
 
     def set_custom_icon(self, name, painter):
-        """Associates a user-provided CharIconPainter to an icon name
+        """Associate a user-provided CharIconPainter to an icon name.
+
         The custom icon can later be addressed by calling
         icon('custom.NAME') where NAME is the provided name for that icon.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         name: str
             name of the custom icon
         painter: CharIconPainter
             The icon painter, implementing
-            `paint(self, iconic, painter, rect, mode, state, options)`
+            ``paint(self, iconic, painter, rect, mode, state, options)``
         """
         self.painters[name] = painter
 
     def _custom_icon(self, name, **kwargs):
-        """Returns the custom icon corresponding to the given name"""
+        """Return the custom icon corresponding to the given name."""
         options = dict(_default_options, **kwargs)
         if name in self.painters:
             painter = self.painters[name]
             return self._icon_by_painter(painter, options)
         else:
-            return QtGui.QIcon()
+            return QIcon()
 
     def _icon_by_painter(self, painter, options):
-        """Returns the icon corresponding to the given painter"""
+        """Return the icon corresponding to the given painter."""
         engine = CharIconEngine(self, painter, options)
-        return QtGui.QIcon(engine)
+        return QIcon(engine)

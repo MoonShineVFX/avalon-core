@@ -1,9 +1,15 @@
+
+import logging
+
 from ... import io, style
 from ...vendor.Qt import QtCore
 from ...vendor import qtawesome
 
 from ..models import TreeModel, Item
 from .. import lib
+
+
+log = logging.getLogger(__name__)
 
 
 def is_filtering_recursible():
@@ -41,7 +47,15 @@ class SubsetsModel(TreeModel):
         self._sorter = None
         self._grouping = grouping
         self._icons = {
-            "subset": qtawesome.icon("fa.file-o", color=style.colors.default)
+            "subset": qtawesome.icon("fa.file-o", color=style.colors.default),
+            "version": qtawesome.icon("fa.check", color="#464646"),
+            # Version in progressive publishing
+            "version.0": qtawesome.icon("fa.thermometer-0", color="#e53935"),
+            "version.1": qtawesome.icon("fa.thermometer-1", color="#f57c00"),
+            "version.2": qtawesome.icon("fa.thermometer-2", color="#f9a825"),
+            "version.3": qtawesome.icon("fa.thermometer-3", color="#9e9d24"),
+            "version.4": qtawesome.icon("fa.thermometer-4", color="#7cb342"),
+            "version.?": qtawesome.icon("fa.question", color="#464646"),
         }
 
     def set_asset(self, asset_id):
@@ -141,6 +155,27 @@ class SubsetsModel(TreeModel):
             "step": version_data.get("step", None)
         })
 
+        progress_rate = None
+
+        if version_data.get("progress"):
+            progress = version_data["progress"]
+            rate = progress["current"] / float(progress["total"])
+            rate = int(rate * 4)
+            _icon_key = "version.%d" % rate
+            if _icon_key not in self._icons:
+                log.warning(
+                    "Invalid publish progress rate in subset '%s' version "
+                    "%03d: %d/%d (current/total)" % (
+                        item["name"], item["version"],
+                        progress["current"], progress["total"]
+                    )
+                )
+                progress_rate = "?"
+            else:
+                progress_rate = str(rate)
+
+        item["progress"] = progress_rate
+
     def refresh(self):
 
         self.clear()
@@ -231,6 +266,16 @@ class SubsetsModel(TreeModel):
             if index.column() == self.columns_index["family"]:
                 item = index.internalPointer()
                 return item.get("familyIcon", None)
+
+            # Add icon to version column
+            if index.column() == self.columns_index["version"]:
+                item = index.internalPointer()
+                if item.get("isGroup"):
+                    return None
+                elif item.get("progress") is None:
+                    return self._icons["version"]
+                else:
+                    return self._icons["version.%s" % item["progress"]]
 
         if role == self.SortDescendingRole:
             item = index.internalPointer()
