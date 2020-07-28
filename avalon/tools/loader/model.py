@@ -1,9 +1,15 @@
+
+import logging
+
 from ... import io, style
 from ...vendor.Qt import QtCore
 from ...vendor import qtawesome
 
 from ..models import TreeModel, Item
 from .. import lib
+
+
+log = logging.getLogger(__name__)
 
 
 def is_filtering_recursible():
@@ -49,6 +55,7 @@ class SubsetsModel(TreeModel):
             "version.2": qtawesome.icon("fa.thermometer-2", color="#f9a825"),
             "version.3": qtawesome.icon("fa.thermometer-3", color="#9e9d24"),
             "version.4": qtawesome.icon("fa.thermometer-4", color="#7cb342"),
+            "version.?": qtawesome.icon("fa.question", color="#464646"),
         }
 
     def set_asset(self, asset_id):
@@ -148,12 +155,26 @@ class SubsetsModel(TreeModel):
             "step": version_data.get("step", None)
         })
 
+        progress_rate = None
+
         if version_data.get("progress"):
             progress = version_data["progress"]
             rate = progress["current"] / float(progress["total"])
-            item["progress"] = int(rate * 4)
-        else:
-            item["progress"] = None
+            rate = int(rate * 4)
+            _icon_key = "version.%d" % rate
+            if _icon_key not in self._icons:
+                log.warning(
+                    "Invalid publish progress rate in subset '%s' version "
+                    "%03d: %d/%d (current/total)" % (
+                        item["name"], item["version"],
+                        progress["current"], progress["total"]
+                    )
+                )
+                progress_rate = "?"
+            else:
+                progress_rate = str(rate)
+
+        item["progress"] = progress_rate
 
     def refresh(self):
 
@@ -254,7 +275,7 @@ class SubsetsModel(TreeModel):
                 elif item.get("progress") is None:
                     return self._icons["version"]
                 else:
-                    return self._icons["version.%d" % item["progress"]]
+                    return self._icons["version.%s" % item["progress"]]
 
         if role == self.SortDescendingRole:
             item = index.internalPointer()
