@@ -121,10 +121,10 @@ def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
             return "a minute ago"
         if second_diff < 3600:
             return str(second_diff // 60) + " minutes ago"
+        if second_diff < 7200:
+            return "an hour ago"
         if second_diff < 86400:
-            minutes = (second_diff % 3600) // 60
-            hours = second_diff // 3600
-            return "{0}:{1:02d} hours ago".format(hours, minutes)
+            return str(second_diff // 3600) + " hours ago"
 
     pretty = t.strftime(strftime)
     if six.PY3 or local_encoding is None:
