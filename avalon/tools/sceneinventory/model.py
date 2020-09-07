@@ -23,11 +23,12 @@ class InventoryModel(TreeModel):
 
     UniqueRole = QtCore.Qt.UserRole + 2     # unique label role
 
-    def __init__(self, parent=None):
+    def __init__(self, hierarchy=False, parent=None):
         super(InventoryModel, self).__init__(parent)
         self.log = logging.getLogger(self.__class__.__name__)
 
-        self._hierarchy_view = False
+        self._hierarchy_view = hierarchy
+        self._doc_cache = dict()
 
     def data(self, index, role):
 
@@ -106,18 +107,23 @@ class InventoryModel(TreeModel):
         items = host.ls()
 
         self.clear()
+        self.beginResetModel()
 
-        if self._hierarchy_view and selected:
+        if self._hierarchy_view:
 
             if not hasattr(host.pipeline, "update_hierarchy"):
-                # If host doesn't support hierarchical containers, then
-                # cherry-pick only.
-                self.add_items((item for item in items
-                                if item["objectName"] in selected))
+                if selected:
+                    # If host doesn't support hierarchical containers, then
+                    # cherry-pick only.
+                    self.add_items((item for item in items
+                                    if item["objectName"] in selected))
+                return
 
             # Update hierarchy info for all containers
             items_by_name = {item["objectName"]: item
                              for item in host.pipeline.update_hierarchy(items)}
+
+            selected = selected or list(items_by_name.keys())
 
             selected_items = set()
 
@@ -184,6 +190,8 @@ class InventoryModel(TreeModel):
         else:
             self.add_items(items)
 
+        self.endResetModel()
+
     def add_items(self, items, parent=None):
         """Add the items to the model.
 
@@ -206,9 +214,6 @@ class InventoryModel(TreeModel):
         Returns:
             node.Item: root node which has children added based on the data
         """
-
-        self.beginResetModel()
-
         # Group by representation
         grouped = defaultdict(list)
         for item in items:
@@ -218,12 +223,10 @@ class InventoryModel(TreeModel):
         for representation_id, group_items in sorted(grouped.items()):
 
             # Get parenthood per group
-            representation = io.find_one({
-                "_id": io.ObjectId(representation_id)
-            })
-            version = io.find_one({"_id": representation["parent"]})
-            subset = io.find_one({"_id": version["parent"]})
-            asset = io.find_one({"_id": subset["parent"]})
+            representation = self._doc_by_id(io.ObjectId(representation_id))
+            version = self._doc_by_id(representation["parent"])
+            subset = self._doc_by_id(version["parent"])
+            asset = self._doc_by_id(subset["parent"])
 
             # Get the primary family
             no_family = ""
@@ -277,6 +280,9 @@ class InventoryModel(TreeModel):
 
                 self.add_child(item_node, parent=group_node)
 
-        self.endResetModel()
-
         return self._root_item
+
+    def _doc_by_id(self, _id):
+        if _id not in self._doc_cache:
+            self._doc_cache[_id] = io.find_one({"_id": _id})
+        return self._doc_cache[_id]
