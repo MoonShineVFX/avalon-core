@@ -75,7 +75,8 @@ def _set_project():
         if e.errno == errno.EEXIST:
             pass
         else:
-            raise
+            logger.error("Unable to set project.")
+            return
 
     cmds.workspace(workdir, openWorkspace=True)
 

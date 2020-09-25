@@ -423,7 +423,13 @@ class Application(Action):
         workdir = environment["AVALON_WORKDIR"]
         workdir_existed = os.path.exists(workdir)
         if not workdir_existed:
-            os.makedirs(workdir)
+            try:
+                os.makedirs(workdir)
+            except OSError:
+                self.log.error("Unable to create working directory '%s'"
+                               % workdir)
+                return
+
             self.log.info("Creating working directory '%s'" % workdir)
 
             # Create default directories from app configuration
@@ -464,12 +470,14 @@ class Application(Action):
                 % (self.config["executable"], os.getenv("PATH"))
             )
 
+        workdir = environment["AVALON_WORKDIR"]
         args = self.config.get("args", [])
+        cwd = workdir if os.path.isdir(workdir) else os.getcwd()
         return lib.launch(
             executable=executable,
             args=args,
             environment=environment,
-            cwd=environment["AVALON_WORKDIR"]
+            cwd=cwd
         )
 
     def process(self, session, **kwargs):
