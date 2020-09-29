@@ -2,7 +2,7 @@ import re
 import logging
 import collections
 
-from ..vendor.Qt import QtCore, QtGui
+from ..vendor.Qt import Qt, QtCore, QtGui
 from ..vendor import qtawesome
 from .. import io
 from .. import style
@@ -63,7 +63,8 @@ class TreeModel(QtCore.QAbstractItemModel):
                 item[key] = value
 
                 # passing `list()` for PyQt5 (see PYSIDE-462)
-                self.dataChanged.emit(index, index, list())
+                args = () if Qt.IsPySide or Qt.IsPyQt4 else ([role],)
+                self.dataChanged.emit(index, index, *args)
 
                 # must return true if successful
                 return True
@@ -329,6 +330,9 @@ class AssetModel(TreeModel):
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
         self.refresh()
+        # (TODO) A good model should NOT self refresh on init, should let
+        #   the main app make this call, or some where that all signals been
+        #   connected.
 
     def _add_hierarchy(self, assets, parent=None, silos=None):
         """Add the assets that are related to the parent as children items.
@@ -417,6 +421,23 @@ class AssetModel(TreeModel):
 
         self.endResetModel()
 
+    def update_documents(self, indexes):
+        """Update items documents by indexes
+
+        Collect items' document id from indexes, and query database
+        for updating item data with `DocumentRole`
+
+        """
+        doc_ids = dict()
+        for index in indexes:
+            doc_id = self.data(index, self.ObjectIdRole)
+            doc_ids[doc_id] = index
+
+        documents = io.find({"_id": {"$in": list(doc_ids.keys())}})
+        for doc in documents:
+            index = doc_ids[doc["_id"]]
+            self.setData(index, doc, role=self.DocumentRole)
+
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
@@ -430,7 +451,6 @@ class AssetModel(TreeModel):
 
             column = index.column()
             if column == self.Name:
-
                 # Allow a custom icon and custom icon color to be defined
                 data = item.get("_document", {}).get("data", {})
                 icon = data.get("icon", None)
@@ -472,9 +492,35 @@ class AssetModel(TreeModel):
 
         return super(AssetModel, self).data(index, role)
 
+    def setData(self, index, value, role=QtCore.Qt.EditRole):
+        """Change the data on the items.
+
+        Returns:
+            bool: Whether the edit was successful
+        """
+        if not index.isValid():
+            return False
+
+        changed = False
+
+        if role == self.DocumentRole:
+            item = index.internalPointer()
+            item["_document"] = value
+            changed = True
+
+        if changed:
+            # passing `list()` for PyQt5 (see PYSIDE-462)
+            args = () if Qt.IsPySide or Qt.IsPyQt4 else ([role],)
+            self.dataChanged.emit(index, index, *args)
+            # must return true if successful
+            return True
+        else:
+            return super(AssetModel, self).setData(index, value, role)
+
 
 class RecursiveSortFilterProxyModel(QtCore.QSortFilterProxyModel):
     """Filters to the regex if any of the children matches allow parent"""
+
     def filterAcceptsRow(self, row, parent):
 
         regex = self.filterRegExp()

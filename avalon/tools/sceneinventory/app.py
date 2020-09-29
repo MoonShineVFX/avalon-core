@@ -24,7 +24,7 @@ class View(QtWidgets.QTreeView):
     data_changed = QtCore.Signal()
     hierarchy_view = QtCore.Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, hierarchy=False, parent=None):
         super(View, self).__init__(parent=parent)
 
         # view settings
@@ -34,7 +34,7 @@ class View(QtWidgets.QTreeView):
         self.setSelectionMode(self.ExtendedSelection)
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_right_mouse_menu)
-        self._hierarchy_view = False
+        self._hierarchy_view = hierarchy
         self._selected = None
 
     def enter_hierarchy(self, items):
@@ -317,22 +317,22 @@ class View(QtWidgets.QTreeView):
                 child = model.index(row, 0, parent=i)
                 yield child
 
-        subitems = set()
+        subitems = dict()
         for i in indices:
             valid_parent = i.parent().isValid()
-            if valid_parent and i not in subitems:
-                subitems.add(i)
+            if valid_parent and str(i) not in subitems:
+                subitems[str(i)] = i
 
                 if self._hierarchy_view:
                     # Assume this is a group node
                     for child in get_children(i):
-                        subitems.add(child)
+                        subitems[str(child)] = child
             else:
                 # is top level node
                 for child in get_children(i):
-                    subitems.add(child)
+                    subitems[str(child)] = child
 
-        return list(subitems)
+        return list(subitems.values())
 
     def show_version_dialog(self, items):
         """Create a dialog with the available versions for the selected file
@@ -820,7 +820,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 class Window(QtWidgets.QDialog):
     """Scene Inventory window"""
 
-    def __init__(self, parent=None):
+    def __init__(self, hierarchy=False, parent=None):
         QtWidgets.QDialog.__init__(self, parent)
 
         self.resize(1100, 480)
@@ -853,9 +853,9 @@ class Window(QtWidgets.QDialog):
 
         # endregion control
 
-        model = InventoryModel()
+        model = InventoryModel(hierarchy)
         proxy = FilterProxyModel()
-        view = View()
+        view = View(hierarchy)
         view.setModel(proxy)
 
         # apply delegates
@@ -923,7 +923,7 @@ class Window(QtWidgets.QDialog):
                     self.model.refresh()
 
 
-def show(root=None, debug=False, parent=None):
+def show(root=None, hierarchy=False, debug=False, parent=None):
     """Display Scene Inventory GUI
 
     Arguments:
@@ -945,7 +945,7 @@ def show(root=None, debug=False, parent=None):
         sys.excepthook = lambda typ, val, tb: traceback.print_last()
 
     with tools_lib.application():
-        window = Window(parent)
+        window = Window(hierarchy, parent)
         window.show()
         window.setStyleSheet(style.load_stylesheet())
         window.refresh()

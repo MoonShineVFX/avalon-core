@@ -25,20 +25,30 @@ except ImportError:
     try:
         # If used as a git repository
         _cwd = _os.path.dirname(__file__)
-        VERSION_PATCH = int(_subprocess.check_output(
+
+        BRANCH_PATCH = int(_subprocess.check_output(
             ["git", "rev-list", "HEAD", "--count"],
-
             cwd=_cwd,
-
             # Ensure strings are returned from both Python 2 and 3
             universal_newlines=True,
-
         ).rstrip())
+
+        MASTER_PATCH = int(_subprocess.check_output(
+            ["git", "rev-list", "master", "--count"],
+            cwd=_cwd,
+            # Ensure strings are returned from both Python 2 and 3
+            universal_newlines=True,
+        ).rstrip())
+
+        VERSION_PATCH = MASTER_PATCH
 
         # Builds since previous minor version
         VERSION_PATCH -= 1707
         VERSION_PATCH -= 83
         VERSION_PATCH -= 86
+
+        BRANCH_PATCH -= MASTER_PATCH
+        VERSION_PATCH = "%s.%s" % (VERSION_PATCH, BRANCH_PATCH)
 
     except Exception:
         # Otherwise, no big deal

@@ -359,22 +359,26 @@ def insert_many(items, ordered=True):
 
 
 @auto_reconnect
-def find(filter, projection=None, sort=None):
+def find(filter, projection=None, sort=None, *args, **kwargs):
     return self._database[Session["AVALON_PROJECT"]].find(
         filter=filter,
         projection=projection,
-        sort=sort
+        sort=sort,
+        *args,
+        **kwargs
     )
 
 
 @auto_reconnect
-def find_one(filter, projection=None, sort=None):
+def find_one(filter, projection=None, sort=None, *args, **kwargs):
     assert isinstance(filter, dict), "filter must be <dict>"
 
     return self._database[Session["AVALON_PROJECT"]].find_one(
         filter=filter,
         projection=projection,
-        sort=sort
+        sort=sort,
+        *args,
+        **kwargs
     )
 
 
@@ -400,6 +404,12 @@ def update_many(filter, update):
 @auto_reconnect
 def distinct(*args, **kwargs):
     return self._database[Session["AVALON_PROJECT"]].distinct(
+        *args, **kwargs)
+
+
+@auto_reconnect
+def aggregate(*args, **kwargs):
+    return self._database[Session["AVALON_PROJECT"]].aggregate(
         *args, **kwargs)
 
 

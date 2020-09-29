@@ -1,9 +1,15 @@
+
+import logging
+
 from ... import io, style
 from ...vendor.Qt import QtCore
 from ...vendor import qtawesome
 
 from ..models import TreeModel, Item
 from .. import lib
+
+
+log = logging.getLogger(__name__)
 
 
 def is_filtering_recursible():
@@ -17,6 +23,10 @@ def is_filtering_recursible():
 
 
 class SubsetsModel(TreeModel):
+
+    doc_fetched = QtCore.Signal()
+    refreshed = QtCore.Signal(bool)
+
     Columns = [
         "subset",
         "family",
@@ -41,8 +51,21 @@ class SubsetsModel(TreeModel):
         self._sorter = None
         self._grouping = grouping
         self._icons = {
-            "subset": qtawesome.icon("fa.file-o", color=style.colors.default)
+            "subset": qtawesome.icon("fa.file-o", color=style.colors.default),
+            "version": qtawesome.icon("fa.check", color="#464646"),
+            # Version in progressive publishing
+            "version.0": qtawesome.icon("fa.thermometer-0", color="#e53935"),
+            "version.1": qtawesome.icon("fa.thermometer-1", color="#f57c00"),
+            "version.2": qtawesome.icon("fa.thermometer-2", color="#f9a825"),
+            "version.3": qtawesome.icon("fa.thermometer-3", color="#9e9d24"),
+            "version.4": qtawesome.icon("fa.thermometer-4", color="#7cb342"),
+            "version.?": qtawesome.icon("fa.question", color="#464646"),
         }
+        self._doc_fetching_thread = None
+        self._doc_fetching_stop = False
+        self._doc_payload = list()
+
+        self.doc_fetched.connect(self.on_doc_fetched)
 
     def set_asset(self, asset_id):
         self._asset_id = asset_id
@@ -50,7 +73,7 @@ class SubsetsModel(TreeModel):
 
     def set_grouping(self, state):
         self._grouping = state
-        self.refresh()
+        self.on_doc_fetched()
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
 
@@ -141,17 +164,93 @@ class SubsetsModel(TreeModel):
             "step": version_data.get("step", None)
         })
 
-    def refresh(self):
+        progress_rate = None
 
+        if version_data.get("progress"):
+            progress = version_data["progress"]
+            rate = progress["current"] / float(progress["total"])
+            rate = int(rate * 4)
+            _icon_key = "version.%d" % rate
+            if _icon_key not in self._icons:
+                log.warning(
+                    "Invalid publish progress rate in subset '%s' version "
+                    "%03d: %d/%d (current/total)" % (
+                        item["name"], item["version"],
+                        progress["current"], progress["total"]
+                    )
+                )
+                progress_rate = "?"
+            else:
+                progress_rate = str(rate)
+
+        item["progress"] = progress_rate
+
+    def fetch_subset_and_version(self):
+        """Query all subsets and latest versions from aggregation
+
+        (NOTE) The returned version documents are NOT the real version
+            document, it's generated from the MongoDB's aggregation so
+            some of the first level field may not be presented.
+
+        """
+        def _fetch():
+            _subsets = list()
+            _ids = list()
+            for subset in io.find({"type": "subset",
+                                   "parent": self._asset_id}):
+                if self._doc_fetching_stop:
+                    return
+                _subsets.append(subset)
+                _ids.append(subset["_id"])
+
+            _pipeline = [
+                # Find all versions of those subsets
+                {"$match": {"type": "version", "parent": {"$in": _ids}}},
+                # Sorting versions all together
+                {"$sort": {"name": 1}},
+                # Group them by "parent", but only take the last
+                {"$group": {"_id": "$parent",
+                            "_version_id": {"$last": "$_id"},
+                            "name": {"$last": "$name"},
+                            "data": {"$last": "$data"},
+                            "locations": {"$last": "$locations"},
+                            "schema": {"$last": "$schema"}}},
+            ]
+            versions = dict()
+            for doc in io.aggregate(_pipeline):
+                if self._doc_fetching_stop:
+                    return
+                doc["parent"] = doc["_id"]
+                doc["_id"] = doc.pop("_version_id")
+                versions[doc["parent"]] = doc
+
+            self._doc_payload[:] = [(subset, versions.get(subset["_id"]))
+                                    for subset in _subsets]
+            self.doc_fetched.emit()
+
+        self._doc_payload[:] = []
+        self._doc_fetching_stop = False
+        self._doc_fetching_thread = lib.create_qthread(_fetch)
+        self._doc_fetching_thread.start()
+
+    def stop_fetch_thread(self):
+        if self._doc_fetching_thread is not None:
+            self._doc_fetching_stop = True
+            while self._doc_fetching_thread.isRunning():
+                pass
+
+    def refresh(self):
+        self.stop_fetch_thread()
+        self.clear()
+        if not self._asset_id:
+            return
+        self.fetch_subset_and_version()
+
+    def on_doc_fetched(self):
         self.clear()
         self.beginResetModel()
-        if not self._asset_id:
-            self.endResetModel()
-            return
 
-        asset_id = self._asset_id
-
-        active_groups = lib.get_active_group_config(asset_id)
+        active_groups = lib.get_active_group_config(self._asset_id)
 
         # Generate subset group nodes
         group_items = dict()
@@ -166,15 +265,10 @@ class SubsetsModel(TreeModel):
                 group_items[name] = group
                 self.add_child(group)
 
-        filter = {"type": "subset", "parent": asset_id}
-
         # Process subsets
         row = len(group_items)
-        for subset in io.find(filter):
-
-            last_version = io.find_one({"type": "version",
-                                        "parent": subset["_id"]},
-                                       sort=[("name", -1)])
+        has_item = False
+        for subset, last_version in self._doc_payload:
             if not last_version:
                 # No published version for the subset
                 continue
@@ -203,8 +297,10 @@ class SubsetsModel(TreeModel):
             # Set the version information
             index = self.index(row_, 0, parent=parent_index)
             self.set_version(index, last_version)
+            has_item = True
 
         self.endResetModel()
+        self.refreshed.emit(has_item)
 
     def data(self, index, role):
 
@@ -231,6 +327,16 @@ class SubsetsModel(TreeModel):
             if index.column() == self.columns_index["family"]:
                 item = index.internalPointer()
                 return item.get("familyIcon", None)
+
+            # Add icon to version column
+            if index.column() == self.columns_index["version"]:
+                item = index.internalPointer()
+                if item.get("isGroup"):
+                    return None
+                elif item.get("progress") is None:
+                    return self._icons["version"]
+                else:
+                    return self._icons["version.%s" % item["progress"]]
 
         if role == self.SortDescendingRole:
             item = index.internalPointer()

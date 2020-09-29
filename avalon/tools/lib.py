@@ -5,7 +5,7 @@ import contextlib
 from .. import io, api, style
 from ..vendor import qtawesome
 
-from ..vendor.Qt import QtWidgets, QtCore, QtGui
+from ..vendor.Qt import QtWidgets, QtCore
 
 self = sys.modules[__name__]
 self._jobs = dict()
@@ -110,7 +110,7 @@ def iter_model_rows(model,
 @contextlib.contextmanager
 def preserve_states(tree_view,
                     column=0,
-                    role=None,
+                    role=QtCore.Qt.DisplayRole,
                     preserve_expanded=True,
                     preserve_selection=True,
                     current_index=True,
@@ -126,11 +126,6 @@ def preserve_states(tree_view,
     Returns:
         None
     """
-    # When `role` is set then override both expanded and selection roles
-    if role:
-        expanded_role = role
-        selection_role = role
-
     model = tree_view.model()
     selection_model = tree_view.selectionModel()
     flags = selection_model.Select | selection_model.Rows
@@ -478,3 +473,10 @@ def project_use_silo(project_doc):
         if "{silo}" in template:
             return True
     return False
+
+
+def create_qthread(func, *args, **kwargs):
+    class Thread(QtCore.QThread):
+        def run(self):
+            func(*args, **kwargs)
+    return Thread()

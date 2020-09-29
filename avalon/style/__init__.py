@@ -42,6 +42,7 @@ def load_stylesheet():
 
     # Load the stylesheet content from resources
     path = os.path.join(os.path.dirname(__file__), "style.qss")
+    path = os.getenv("AVALON_STYLE_QSS", path)
     if not os.path.exists(path):
         _log.error("Unable to load stylesheet, file not found in resources")
         return ""

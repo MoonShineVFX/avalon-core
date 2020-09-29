@@ -1,14 +1,18 @@
+
+import locale
 import time
 from datetime import datetime
 import logging
 import numbers
 
+from ..vendor import six
 from ..vendor.Qt import QtWidgets, QtCore
 from .. import io
 
 from .models import TreeModel
 
 log = logging.getLogger(__name__)
+local_encoding = locale.getlocale()[1]
 
 
 class VersionDelegate(QtWidgets.QStyledItemDelegate):
@@ -117,12 +121,18 @@ def pretty_date(t, now=None, strftime="%b %d %Y %H:%M"):
             return "a minute ago"
         if second_diff < 3600:
             return str(second_diff // 60) + " minutes ago"
+        if second_diff < 7200:
+            return "an hour ago"
         if second_diff < 86400:
-            minutes = (second_diff % 3600) // 60
-            hours = second_diff // 3600
-            return "{0}:{1:02d} hours ago".format(hours, minutes)
+            return str(second_diff // 3600) + " hours ago"
 
-    return t.strftime(strftime)
+    pretty = t.strftime(strftime)
+    if six.PY3 or local_encoding is None:
+        return pretty
+    else:
+        # For 3dsMax, the Python shipped with it force using OS lang on
+        # datetime formating, which may leads to unicode error.
+        return pretty.decode(local_encoding)
 
 
 def pretty_timestamp(t, now=None):
