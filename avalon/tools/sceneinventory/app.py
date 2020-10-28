@@ -51,6 +51,7 @@ class View(QtWidgets.QTreeView):
 
     def leave_hierarchy(self):
         self._hierarchy_view = False
+        self._selected = set([])
         self.hierarchy_view.emit(False)
         self.data_changed.emit()
         self.setStyleSheet("QTreeView {}")
@@ -226,8 +227,9 @@ class View(QtWidgets.QTreeView):
             self.clearSelection()
 
         object_names = set(object_names)
-        if (self._hierarchy_view and
-                not self._selected.issuperset(object_names)):
+        if (self._hierarchy_view
+                and self._selected is not None
+                and not self._selected.issuperset(object_names)):
             # If any container not in current cherry-picked view, update
             # view before selecting them.
             self._selected.update(object_names)
